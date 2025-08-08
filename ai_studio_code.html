@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to PDF Converter</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Hind+Siliguri:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Using html2pdf.js for robust PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+        :root {
+            --primary-bg: #1A202C; --secondary-bg: #2D3748; --accent-color: #38A169;
+            --text-color: #E2E8F0; --border-color: #4A5568; --header-glow: rgba(56, 161, 105, 0.4);
+            --button-secondary: #4A5568;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', 'Hind Siliguri', sans-serif; background-color: var(--primary-bg);
+            color: var(--text-color); display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+        .container {
+            width: 100%; max-width: 800px; background-color: var(--secondary-bg);
+            border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            padding: 30px; border-top: 4px solid var(--accent-color);
+        }
+        header h1 {
+            text-align: center; color: var(--accent-color); margin-bottom: 25px;
+            font-size: 2.2em; text-shadow: 0 0 10px var(--header-glow);
+        }
+        #text-input {
+            width: 100%; min-height: 300px; padding: 15px; border: 1px solid var(--border-color);
+            background-color: var(--primary-bg); border-radius: 8px; font-size: 1.1em;
+            color: var(--text-color); font-family: 'Hind Siliguri', sans-serif;
+            line-height: 1.8; resize: vertical; margin-bottom: 20px; white-space: pre-wrap;
+        }
+        #text-input:focus { outline: none; border-color: var(--accent-color); }
+        .controls { display: grid; grid-template-columns: 1fr auto auto; gap: 15px; align-items: center; }
+        #filename-input {
+            grid-column: 1 / 2; padding: 12px; border: 1px solid var(--border-color);
+            background-color: var(--primary-bg); border-radius: 8px; font-size: 1em; color: var(--text-color);
+        }
+        .btn {
+            padding: 12px 20px; color: white; border: none; border-radius: 8px;
+            font-size: 1em; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        #copy-btn { background-color: var(--button-secondary); }
+        #copy-btn:hover { background-color: #606c82; }
+        #download-btn { background-color: var(--accent-color); }
+        #download-btn:hover { background-color: #2F855A; }
+        #download-btn:disabled { background-color: #555; cursor: not-allowed; }
+        
+        @media (max-width: 600px) {
+            .controls { grid-template-columns: 1fr; }
+            #filename-input { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header> <h1><i class="fas fa-file-pdf"></i> টেক্সট-টু-পিডিএফ কনভার্টার</h1> </header>
+    <main>
+        <!-- This div will be used by html2pdf for screenshot -->
+        <div id="content-to-print" style="padding: 20px; background: white; color: black; display: none; white-space: pre-wrap; font-family: 'Hind Siliguri', sans-serif; font-size: 14px; line-height: 1.8;"></div>
+        
+        <textarea id="text-input" placeholder="আপনার ফরম্যাটেড টেক্সট এখানে পেস্ট করুন..."></textarea>
+        
+        <div class="controls">
+            <input type="text" id="filename-input" placeholder="ফাইলের নাম দিন...">
+            <button id="copy-btn" class="btn"><i class="fas fa-copy"></i> কপি করুন</button>
+            <button id="download-btn" class="btn"><i class="fas fa-download"></i> ডাউনলোড PDF</button>
+        </div>
+    </main>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const textInput = document.getElementById('text-input');
+        const filenameInput = document.getElementById('filename-input');
+        const downloadBtn = document.getElementById('download-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const contentToPrint = document.getElementById('content-to-print');
+        
+        downloadBtn.addEventListener('click', () => {
+            const textToConvert = textInput.value;
+            let filename = filenameInput.value.trim() || 'my-note';
+
+            if (textToConvert.trim() === '') {
+                alert('অনুগ্রহ করে টেক্সট বক্সে কিছু লিখুন।');
+                return;
+            }
+
+            // Disable button to prevent multiple clicks
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> প্রসেসিং...';
+
+            try {
+                // Put the text into the hidden div to be screenshotted
+                contentToPrint.innerText = textToConvert;
+
+                const opt = {
+                    margin:       15,
+                    filename:     filename + '.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                // Generate PDF from the hidden div
+                html2pdf().from(contentToPrint).set(opt).save().then(() => {
+                    // Re-enable button after saving is complete
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> ডাউনলোড PDF';
+                });
+
+            } catch (error) {
+                console.error("PDF generation failed:", error);
+                alert("দুঃখিত, PDF তৈরি করতে একটি সমস্যা হয়েছে।");
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> ডাউনলোড PDF';
+            }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            if (textInput.value.trim() === '') {
+                alert('কপি করার জন্য বক্সে কিছু নেই।');
+                return;
+            }
+            navigator.clipboard.writeText(textInput.value)
+                .then(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> কপি হয়েছে!';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> কপি করুন';
+                    }, 2000);
+                })
+                .catch(err => {
+                    alert('কপি করতে সমস্যা হয়েছে।');
+                    console.error('Copy failed:', err);
+                });
+        });
+    });
+</script>
+</body>
+</html>
